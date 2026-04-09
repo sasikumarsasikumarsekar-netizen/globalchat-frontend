@@ -4,26 +4,38 @@
     <title>GlobalChat</title>
 
     <style>
-        body {
-            font-family: Arial;
-            background: #ece5dd;
-            margin: 0;
+        body { font-family: Arial; background: #ece5dd; margin: 0; }
+
+        .header { background: #075E54; color: white; padding: 15px; }
+
+        .container { display: flex; }
+
+        .contacts {
+            width: 25%;
+            background: #fff;
+            border-right: 1px solid #ccc;
+            height: 500px;
+            overflow-y: auto;
         }
 
-        .header {
-            background: #075E54;
-            color: white;
-            padding: 15px;
-            font-size: 20px;
-        }
-
-        .top-bar {
+        .contact {
             padding: 10px;
-            background: #f0f0f0;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
         }
+
+        .contact:hover { background: #f5f5f5; }
+
+        .chat-area {
+            width: 75%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar { padding: 10px; background: #f0f0f0; }
 
         .chat-box {
-            height: 100%;
+            flex: 1;
             overflow-y: scroll;
             background: #e5ddd5;
             padding: 10px;
@@ -34,7 +46,6 @@
             margin: 5px;
             border-radius: 10px;
             max-width: 60%;
-            clear: both;
         }
 
         .me {
@@ -54,10 +65,7 @@
             background: #f0f0f0;
         }
 
-        input, select {
-            padding: 8px;
-            margin-right: 5px;
-        }
+        input, select { padding: 8px; margin-right: 5px; }
 
         button {
             padding: 8px 15px;
@@ -66,144 +74,106 @@
             color: white;
             cursor: pointer;
         }
-
-        .user {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .user:hover {
-            background: #f5f5f5;
-        }
-
-        .active {
-            background: #d9fdd3;
-        }
     </style>
 </head>
 
 <body>
 
-<div class="header">
-    🌍 GlobalChat
-</div>
+<div class="header">🌍 GlobalChat</div>
 
 <div class="top-bar">
     <input id="name" placeholder="Your Name">
-    
     <select id="lang">
         <option value="en">English</option>
         <option value="ta">Tamil</option>
         <option value="hi">Hindi</option>
     </select>
-
     <button onclick="connect()">Connect</button>
 </div>
 
-<!-- 🔥 CONTACT + CHAT LAYOUT -->
-<div style="display:flex; height:500px;">
+<div class="container">
+    <div class="contacts" id="contacts"></div>
 
-    <!-- LEFT: CONTACT LIST -->
-    <div style="width:30%; background:#fff; border-right:1px solid #ccc; overflow-y:auto;" id="usersList">
-        <h3 style="padding:10px;">Contacts</h3>
-    </div>
-
-    <!-- RIGHT: CHAT -->
-    <div style="width:70%; display:flex; flex-direction:column;">
-        
+    <div class="chat-area">
         <div class="chat-box" id="chatBox"></div>
 
         <div class="input-box">
             <input id="message" placeholder="Type message..." style="flex:1;">
             <button onclick="sendMessage()">Send</button>
         </div>
-
     </div>
 </div>
 
 <script>
 let ws;
 let myName = "";
-let currentReceiver = "";
+let selectedUser = "";
 
-// 🔥 CONNECT
+// CONNECT
 function connect() {
     myName = document.getElementById("name").value;
     let lang = document.getElementById("lang").value;
 
-    if (!myName) {
-        alert("Enter name first!");
-        return;
-    }
-
     ws = new WebSocket("wss://globalchat-rdsz.onrender.com/ws");
 
     ws.onopen = function() {
-        ws.send(JSON.stringify({
-            name: myName,
-            lang: lang
-        }));
+        ws.send(JSON.stringify({ name: myName, lang: lang }));
     };
 
     ws.onmessage = function(event) {
-        let chatBox = document.getElementById("chatBox");
+        let data = JSON.parse(event.data);
 
-        let msg = event.data;
-        let sender = msg.split(":")[0].trim();
+        // USER LIST
+        if (data.type === "users") {
+            let contactsDiv = document.getElementById("contacts");
+            contactsDiv.innerHTML = "";
 
-        // 🔥 ADD CONTACT
-        addUser(sender);
+            data.users.forEach(user => {
+                if (user === myName) return;
 
-        let isMe = (sender === myName);
+                let div = document.createElement("div");
+                div.innerText = user;
+                div.className = "contact";
 
-        let div = document.createElement("div");
-        div.classList.add("msg");
-        div.classList.add(isMe ? "me" : "other");
+                div.onclick = function() {
+                    selectedUser = user;
+                };
 
-        div.innerText = msg;
+                contactsDiv.appendChild(div);
+            });
+        }
 
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        // MESSAGE
+        if (data.type === "msg") {
+            let chatBox = document.getElementById("chatBox");
+
+            let msg = data.data;
+            let sender = msg.split(":")[0].trim();
+
+            let div = document.createElement("div");
+            div.classList.add("msg");
+            div.classList.add(sender === myName ? "me" : "other");
+
+            div.innerText = msg;
+
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     };
 }
 
-// 🔥 ADD USER TO LIST
-function addUser(name) {
-    if (name === myName) return;
-
-    let list = document.getElementById("usersList");
-
-    if (!document.getElementById("user_" + name)) {
-        let div = document.createElement("div");
-        div.id = "user_" + name;
-        div.classList.add("user");
-        div.innerText = name;
-
-        div.onclick = function() {
-            currentReceiver = name;
-
-            // highlight selected
-            document.querySelectorAll(".user").forEach(u => u.classList.remove("active"));
-            div.classList.add("active");
-        };
-
-        list.appendChild(div);
-    }
-}
-
-// 🔥 SEND MESSAGE
+// SEND
 function sendMessage() {
     let message = document.getElementById("message").value;
 
-    if (!message || !currentReceiver) {
+    if (!selectedUser) {
         alert("Select a user first!");
         return;
     }
 
     ws.send(JSON.stringify({
         sender: myName,
-        receiver: currentReceiver,
+        receiver: selectedUser,
         message: message
     }));
 
