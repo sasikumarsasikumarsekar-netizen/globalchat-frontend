@@ -26,6 +26,8 @@
 
         .contact:hover { background: #f5f5f5; }
 
+        .active { background: #d0f0c0 !important; }
+
         .chat-area {
             width: 75%;
             display: flex;
@@ -83,11 +85,13 @@
 
 <div class="top-bar">
     <input id="name" placeholder="Your Name">
+    
     <select id="lang">
         <option value="en">English</option>
         <option value="ta">Tamil</option>
         <option value="hi">Hindi</option>
     </select>
+
     <button onclick="connect()">Connect</button>
 </div>
 
@@ -114,6 +118,11 @@ function connect() {
     myName = document.getElementById("name").value;
     let lang = document.getElementById("lang").value;
 
+    if (!myName) {
+        alert("Enter your name!");
+        return;
+    }
+
     ws = new WebSocket("wss://globalchat-rdsz.onrender.com/ws");
 
     ws.onopen = function() {
@@ -137,6 +146,10 @@ function connect() {
 
                 div.onclick = function() {
                     selectedUser = user;
+
+                    // Highlight selected
+                    document.querySelectorAll(".contact").forEach(c => c.classList.remove("active"));
+                    div.classList.add("active");
                 };
 
                 contactsDiv.appendChild(div);
@@ -162,7 +175,7 @@ function connect() {
     };
 }
 
-// SEND
+// SEND MESSAGE
 function sendMessage() {
     let message = document.getElementById("message").value;
 
@@ -170,6 +183,8 @@ function sendMessage() {
         alert("Select a user first!");
         return;
     }
+
+    if (!message) return;
 
     ws.send(JSON.stringify({
         sender: myName,
