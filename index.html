@@ -8,13 +8,12 @@
 
         .header { background: #075E54; color: white; padding: 15px; }
 
-        .container { display: flex; }
+        .container { display: flex; height: 90vh; }
 
         .contacts {
             width: 25%;
             background: #fff;
             border-right: 1px solid #ccc;
-            height: 500px;
             overflow-y: auto;
         }
 
@@ -25,8 +24,6 @@
         }
 
         .contact:hover { background: #f5f5f5; }
-
-        .active { background: #d0f0c0 !important; }
 
         .chat-area {
             width: 75%;
@@ -85,13 +82,11 @@
 
 <div class="top-bar">
     <input id="name" placeholder="Your Name">
-    
     <select id="lang">
         <option value="en">English</option>
         <option value="ta">Tamil</option>
         <option value="hi">Hindi</option>
     </select>
-
     <button onclick="connect()">Connect</button>
 </div>
 
@@ -112,107 +107,107 @@
 let ws;
 let myName = "";
 let selectedUser = "";
-let users = [];
-let pingInterval;
 
-// CONNECT
+// CONNECT WITH AUTO RECONNECT
 function connect() {
     myName = document.getElementById("name").value;
     let lang = document.getElementById("lang").value;
 
-    if (!myName) {
-        alert("Enter your name!");
-        return;
+    function startWS() {
+        ws = new WebSocket("wss://globalchat-rdsz.onrender.com/ws");
+
+        ws.onopen = function() {
+            console.log("Connected ✅");
+            ws.send(JSON.stringify({ name: myName, lang: lang }));
+        };
+
+        ws.onerror = function() {
+            console.log("Error ❌ reconnecting...");
+            setTimeout(startWS, 2000);
+        };
+
+        ws.onclose = function() {
+            console.log("Closed ❌ reconnecting...");
+            setTimeout(startWS, 2000);
+        };
+
+        ws.onmessage = function(event) {
+            handleMessage(event);
+        };
     }
 
-    ws = new WebSocket("wss://globalchat-rdsz.onrender.com/ws");
-
-    ws.onopen = function() {
-        console.log("Connected ✅");
-
-        ws.send(JSON.stringify({ name: myName, lang: lang }));
-
-        // 🔁 Force user refresh
-        pingInterval = setInterval(() => {
-            ws.send(JSON.stringify({ type: "ping" }));
-        }, 1500);
-    };
-
-    ws.onmessage = function(event) {
-        let data = JSON.parse(event.data);
-
-        // 🔥 USER LIST
-        if (data.type === "users") {
-            users = data.users.filter(u => u !== myName);
-
-            let contactsDiv = document.getElementById("contacts");
-            contactsDiv.innerHTML = "";
-
-            users.forEach(user => {
-                let div = document.createElement("div");
-                div.innerText = user;
-                div.className = "contact";
-
-                div.onclick = function() {
-                    selectedUser = user;
-
-                    document.querySelectorAll(".contact")
-                        .forEach(c => c.classList.remove("active"));
-
-                    div.classList.add("active");
-                };
-
-                contactsDiv.appendChild(div);
-            });
-
-            // 🔥 AUTO SELECT FIRST USER
-            if (!selectedUser && users.length > 0) {
-                selectedUser = users[0];
-                document.querySelector(".contact").classList.add("active");
-            }
-        }
-
-        // 🔥 MESSAGE
-        if (data.type === "msg") {
-            let chatBox = document.getElementById("chatBox");
-
-            let msg = data.data;
-            let sender = msg.split(":")[0].trim();
-
-            let div = document.createElement("div");
-            div.classList.add("msg");
-            div.classList.add(sender === myName ? "me" : "other");
-
-            div.innerText = msg;
-
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    };
-
-    // 🔁 AUTO RECONNECT
-    ws.onclose = function() {
-        console.log("Reconnecting...");
-        clearInterval(pingInterval);
-        setTimeout(connect, 2000);
-    };
+    startWS();
 }
 
-// SEND
+// HANDLE MESSAGES
+function handleMessage(event) {
+    let data = JSON.parse(event.data);
+
+    // USERS LIST
+    if (data.type === "users") {
+        let contactsDiv = document.getElementById("contacts");
+        contactsDiv.innerHTML = "";
+
+        if (data.users.length <= 1) {
+            selectedUser = "";
+            return;
+        }
+
+        data.users.forEach(user => {
+            if (user === myName) return;
+
+            let div = document.createElement("div");
+            div.innerText = user;
+            div.className = "contact";
+
+            div.onclick = function() {
+                selectedUser = user;
+                highlightSelected(div);
+            };
+
+            contactsDiv.appendChild(div);
+
+            // AUTO SELECT FIRST USER
+            if (!selectedUser) {
+                selectedUser = user;
+                highlightSelected(div);
+            }
+        });
+    }
+
+    // MESSAGE
+    if (data.type === "msg") {
+        let chatBox = document.getElementById("chatBox");
+
+        let msg = data.data;
+        let sender = msg.split(":")[0].trim();
+
+        let div = document.createElement("div");
+        div.classList.add("msg");
+        div.classList.add(sender === myName ? "me" : "other");
+
+        div.innerText = msg;
+
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+}
+
+// HIGHLIGHT SELECTED USER
+function highlightSelected(selectedDiv) {
+    let contacts = document.querySelectorAll(".contact");
+    contacts.forEach(c => c.style.background = "white");
+    selectedDiv.style.background = "#d0f0c0";
+}
+
+// SEND MESSAGE
 function sendMessage() {
     let message = document.getElementById("message").value;
-
-    // 🔥 Auto pick user
-    if (!selectedUser && users.length > 0) {
-        selectedUser = users[0];
-    }
 
     if (!selectedUser) {
         alert("No users online!");
         return;
     }
-
-    if (!message) return;
 
     ws.send(JSON.stringify({
         sender: myName,
