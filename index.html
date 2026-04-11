@@ -112,6 +112,7 @@
 let ws;
 let myName = "";
 let selectedUser = "";
+let users = [];
 let pingInterval;
 
 // CONNECT
@@ -129,15 +130,12 @@ function connect() {
     ws.onopen = function() {
         console.log("Connected ✅");
 
-        ws.send(JSON.stringify({
-            name: myName,
-            lang: lang
-        }));
+        ws.send(JSON.stringify({ name: myName, lang: lang }));
 
-        // 🔁 Ping every 2 sec (auto refresh users)
+        // 🔁 Force user refresh
         pingInterval = setInterval(() => {
             ws.send(JSON.stringify({ type: "ping" }));
-        }, 2000);
+        }, 1500);
     };
 
     ws.onmessage = function(event) {
@@ -145,12 +143,12 @@ function connect() {
 
         // 🔥 USER LIST
         if (data.type === "users") {
+            users = data.users.filter(u => u !== myName);
+
             let contactsDiv = document.getElementById("contacts");
             contactsDiv.innerHTML = "";
 
-            data.users.forEach(user => {
-                if (user === myName) return;
-
+            users.forEach(user => {
                 let div = document.createElement("div");
                 div.innerText = user;
                 div.className = "contact";
@@ -158,12 +156,20 @@ function connect() {
                 div.onclick = function() {
                     selectedUser = user;
 
-                    document.querySelectorAll(".contact").forEach(c => c.classList.remove("active"));
+                    document.querySelectorAll(".contact")
+                        .forEach(c => c.classList.remove("active"));
+
                     div.classList.add("active");
                 };
 
                 contactsDiv.appendChild(div);
             });
+
+            // 🔥 AUTO SELECT FIRST USER
+            if (!selectedUser && users.length > 0) {
+                selectedUser = users[0];
+                document.querySelector(".contact").classList.add("active");
+            }
         }
 
         // 🔥 MESSAGE
@@ -186,21 +192,23 @@ function connect() {
 
     // 🔁 AUTO RECONNECT
     ws.onclose = function() {
-        console.log("Disconnected ❌ Reconnecting...");
+        console.log("Reconnecting...");
         clearInterval(pingInterval);
-
-        setTimeout(() => {
-            connect();
-        }, 2000);
+        setTimeout(connect, 2000);
     };
 }
 
-// SEND MESSAGE
+// SEND
 function sendMessage() {
     let message = document.getElementById("message").value;
 
+    // 🔥 Auto pick user
+    if (!selectedUser && users.length > 0) {
+        selectedUser = users[0];
+    }
+
     if (!selectedUser) {
-        alert("Select a user first!");
+        alert("No users online!");
         return;
     }
 
