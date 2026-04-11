@@ -1,119 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>GlobalChat</title>
-
-    <style>
-        body { font-family: Arial; background: #ece5dd; margin: 0; }
-
-        .header { background: #075E54; color: white; padding: 15px; }
-
-        .container { display: flex; }
-
-        .contacts {
-            width: 25%;
-            background: #fff;
-            border-right: 1px solid #ccc;
-            height: 500px;
-            overflow-y: auto;
-        }
-
-        .contact {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-
-        .contact:hover { background: #f5f5f5; }
-
-        .active { background: #d0f0c0 !important; }
-
-        .chat-area {
-            width: 75%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .top-bar { padding: 10px; background: #f0f0f0; }
-
-        .chat-box {
-            flex: 1;
-            overflow-y: scroll;
-            background: #e5ddd5;
-            padding: 10px;
-        }
-
-        .msg {
-            padding: 10px;
-            margin: 5px;
-            border-radius: 10px;
-            max-width: 60%;
-        }
-
-        .me {
-            background: #dcf8c6;
-            margin-left: auto;
-            text-align: right;
-        }
-
-        .other {
-            background: white;
-            margin-right: auto;
-        }
-
-        .input-box {
-            display: flex;
-            padding: 10px;
-            background: #f0f0f0;
-        }
-
-        input, select { padding: 8px; margin-right: 5px; }
-
-        button {
-            padding: 8px 15px;
-            background: #25D366;
-            border: none;
-            color: white;
-            cursor: pointer;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="header">🌍 GlobalChat</div>
-
-<div class="top-bar">
-    <input id="name" placeholder="Your Name">
-    
-    <select id="lang">
-        <option value="en">English</option>
-        <option value="ta">Tamil</option>
-        <option value="hi">Hindi</option>
-    </select>
-
-    <button onclick="connect()">Connect</button>
-</div>
-
-<div class="container">
-    <div class="contacts" id="contacts"></div>
-
-    <div class="chat-area">
-        <div class="chat-box" id="chatBox"></div>
-
-        <div class="input-box">
-            <input id="message" placeholder="Type message..." style="flex:1;">
-            <button onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-</div>
-
 <script>
 let ws;
 let myName = "";
 let selectedUser = "";
+let reconnectInterval;
 
-// CONNECT
+// CONNECT FUNCTION
 function connect() {
     myName = document.getElementById("name").value;
     let lang = document.getElementById("lang").value;
@@ -126,13 +17,23 @@ function connect() {
     ws = new WebSocket("wss://globalchat-rdsz.onrender.com/ws");
 
     ws.onopen = function() {
-        ws.send(JSON.stringify({ name: myName, lang: lang }));
+        console.log("Connected ✅");
+
+        ws.send(JSON.stringify({
+            name: myName,
+            lang: lang
+        }));
+
+        // 🔁 Auto request user list every 2 sec
+        reconnectInterval = setInterval(() => {
+            ws.send(JSON.stringify({ type: "ping" }));
+        }, 2000);
     };
 
     ws.onmessage = function(event) {
         let data = JSON.parse(event.data);
 
-        // USER LIST
+        // 🔥 USER LIST UPDATE
         if (data.type === "users") {
             let contactsDiv = document.getElementById("contacts");
             contactsDiv.innerHTML = "";
@@ -147,7 +48,6 @@ function connect() {
                 div.onclick = function() {
                     selectedUser = user;
 
-                    // Highlight selected
                     document.querySelectorAll(".contact").forEach(c => c.classList.remove("active"));
                     div.classList.add("active");
                 };
@@ -156,7 +56,7 @@ function connect() {
             });
         }
 
-        // MESSAGE
+        // 🔥 MESSAGE
         if (data.type === "msg") {
             let chatBox = document.getElementById("chatBox");
 
@@ -172,6 +72,16 @@ function connect() {
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+    };
+
+    // 🔁 AUTO RECONNECT
+    ws.onclose = function() {
+        console.log("Disconnected ❌ Reconnecting...");
+        clearInterval(reconnectInterval);
+
+        setTimeout(() => {
+            connect();
+        }, 2000);
     };
 }
 
@@ -195,6 +105,3 @@ function sendMessage() {
     document.getElementById("message").value = "";
 }
 </script>
-
-</body>
-</html>
