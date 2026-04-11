@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>GlobalChat Firebase</title>
+    <title>GlobalChat 🌍</title>
 
     <style>
         body { font-family: Arial; margin:0; background:#ece5dd; }
         .header { background:#075E54; color:white; padding:15px; }
+        .top { padding:10px; background:#f0f0f0; }
+
         .container { display:flex; height:90vh; }
 
         .contacts {
@@ -58,7 +60,7 @@
             background:#f0f0f0;
         }
 
-        input { padding:8px; margin-right:5px; }
+        input, select { padding:8px; margin-right:5px; }
 
         button {
             padding:8px 15px;
@@ -75,10 +77,17 @@
 
 <body>
 
-<div class="header">🔥 GlobalChat (Firebase)</div>
+<div class="header">🌍 GlobalChat (Auto Translation)</div>
 
-<div style="padding:10px;">
+<div class="top">
     <input id="name" placeholder="Your Name">
+
+    <select id="lang">
+        <option value="en">English</option>
+        <option value="ta">Tamil</option>
+        <option value="hi">Hindi</option>
+    </select>
+
     <button onclick="connect()">Connect</button>
 </div>
 
@@ -109,23 +118,25 @@ const db = firebase.database();
 
 let myName = "";
 let selectedUser = "";
+let myLang = "en";
 
 // CONNECT
 function connect() {
     myName = document.getElementById("name").value;
+    myLang = document.getElementById("lang").value;
 
     if (!myName) {
         alert("Enter name!");
         return;
     }
 
-    // 🔥 Add user
+    // 🔥 Save user + language
     db.ref("users/" + myName).set({
         online: true,
-        time: Date.now()
+        lang: myLang
     });
 
-    // 🔥 Listen users
+    // 🔥 Users list
     db.ref("users").on("value", snapshot => {
         let users = snapshot.val() || {};
         let contacts = document.getElementById("contacts");
@@ -148,26 +159,38 @@ function connect() {
             contacts.appendChild(div);
         });
 
-        // 🔥 Auto select
         if (!selectedUser && userList.length > 1) {
             selectedUser = userList.find(u => u !== myName);
         }
     });
 
-    // 🔥 Listen messages
-    db.ref("messages").on("child_added", snapshot => {
+    // 🔥 Messages listener
+    db.ref("messages").on("child_added", async snapshot => {
         let msg = snapshot.val();
 
         if (
             (msg.sender === myName && msg.receiver === selectedUser) ||
             (msg.sender === selectedUser && msg.receiver === myName)
         ) {
-            showMessage(msg);
+            let translated = await translate(msg.text, msg.senderLang, myLang);
+            showMessage(msg.sender, translated);
         }
     });
 }
 
-// SEND
+// 🔥 TRANSLATION
+async function translate(text, from, to) {
+    if (from === to) return text;
+
+    let url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`;
+
+    let res = await fetch(url);
+    let data = await res.json();
+
+    return data[0][0][0];
+}
+
+// SEND MESSAGE
 function sendMessage() {
     let text = document.getElementById("message").value;
 
@@ -181,21 +204,22 @@ function sendMessage() {
     db.ref("messages").push({
         sender: myName,
         receiver: selectedUser,
-        text: text
+        text: text,
+        senderLang: myLang
     });
 
     document.getElementById("message").value = "";
 }
 
 // SHOW MESSAGE
-function showMessage(msg) {
+function showMessage(sender, text) {
     let chat = document.getElementById("chatBox");
 
     let div = document.createElement("div");
     div.classList.add("msg");
-    div.classList.add(msg.sender === myName ? "me" : "other");
+    div.classList.add(sender === myName ? "me" : "other");
 
-    div.innerText = msg.sender + ": " + msg.text;
+    div.innerText = sender + ": " + text;
 
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
