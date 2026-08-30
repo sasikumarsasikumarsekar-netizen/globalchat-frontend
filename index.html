@@ -1,236 +1,998 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>GlobalChat 🌍</title>
 
-    <style>
-        body { font-family: Arial; margin:0; background:#ece5dd; }
-        .header { background:#075E54; color:white; padding:15px; }
-        .top { padding:10px; background:#f0f0f0; }
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-        .container { display:flex; height:90vh; }
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #ece5dd;
+        }
+
+        .header {
+            height: 60px;
+            background: #075E54;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .top {
+            background: #f0f0f0;
+            padding: 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .top input,
+        .top select {
+            height: 38px;
+            padding: 8px;
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #name {
+            width: 180px;
+        }
+
+        #lang {
+            width: 130px;
+        }
+
+        .connect-btn {
+            height: 38px;
+            padding: 0 18px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 109px);
+        }
 
         .contacts {
-            width:25%;
-            background:white;
-            border-right:1px solid #ccc;
-            overflow-y:auto;
+            width: 280px;
+            background: white;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .contacts-title {
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
         }
 
         .contact {
-            padding:10px;
-            border-bottom:1px solid #eee;
-            cursor:pointer;
+            padding: 14px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .contact:hover { background:#f5f5f5; }
+        .contact:hover {
+            background: #f5f5f5;
+        }
+
+        .contact.selected {
+            background: #dcf8c6;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #25D366;
+            border-radius: 50%;
+        }
 
         .chat-area {
-            width:75%;
-            display:flex;
-            flex-direction:column;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            height: 55px;
+            background: #075E54;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-weight: bold;
         }
 
         .chat-box {
-            flex:1;
-            overflow-y:auto;
-            padding:10px;
-            background:#e5ddd5;
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #e5ddd5;
+        }
+
+        .empty {
+            text-align: center;
+            color: #777;
+            margin-top: 40px;
         }
 
         .msg {
-            padding:10px;
-            margin:5px;
-            border-radius:10px;
-            max-width:60%;
+            padding: 9px 12px;
+            margin: 6px 0;
+            border-radius: 8px;
+            max-width: 70%;
+            word-wrap: break-word;
+            font-size: 15px;
         }
 
         .me {
-            background:#dcf8c6;
-            margin-left:auto;
+            background: #dcf8c6;
+            margin-left: auto;
         }
 
         .other {
-            background:white;
+            background: white;
+            margin-right: auto;
+        }
+
+        .sender-name {
+            font-size: 11px;
+            color: #777;
+            margin-bottom: 3px;
         }
 
         .input-box {
-            display:flex;
-            padding:10px;
-            background:#f0f0f0;
+            display: flex;
+            padding: 10px;
+            background: #f0f0f0;
+            gap: 8px;
         }
 
-        input, select { padding:8px; margin-right:5px; }
-
-        button {
-            padding:8px 15px;
-            background:#25D366;
-            color:white;
-            border:none;
+        #message {
+            flex: 1;
+            height: 42px;
+            padding: 10px;
+            border: 1px solid #bbb;
+            border-radius: 5px;
+            font-size: 15px;
         }
+
+        .send-btn {
+            height: 42px;
+            padding: 0 20px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @media (max-width: 700px) {
+
+            .header {
+                height: 52px;
+                font-size: 19px;
+            }
+
+            .top {
+                flex-wrap: wrap;
+            }
+
+            #name {
+                width: 42%;
+            }
+
+            #lang {
+                width: 27%;
+            }
+
+            .connect-btn {
+                width: 25%;
+                padding: 0;
+            }
+
+            .container {
+                height: calc(100vh - 125px);
+            }
+
+            .contacts {
+                width: 110px;
+            }
+
+            .contacts-title {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            .contact {
+                font-size: 13px;
+                padding: 12px 7px;
+            }
+
+            .chat-header {
+                font-size: 14px;
+            }
+
+            .msg {
+                max-width: 85%;
+            }
+        }
+
     </style>
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 
 <body>
 
-<div class="header">🌍 GlobalChat (Auto Translation)</div>
+<div class="header">
+    🌍 GlobalChat
+</div>
 
 <div class="top">
-    <input id="name" placeholder="Your Name">
+
+    <input
+        id="name"
+        type="text"
+        placeholder="Your Name"
+    >
 
     <select id="lang">
+
         <option value="en">English</option>
         <option value="ta">Tamil</option>
         <option value="hi">Hindi</option>
+        <option value="te">Telugu</option>
+        <option value="ml">Malayalam</option>
+        <option value="kn">Kannada</option>
+        <option value="bn">Bengali</option>
+        <option value="mr">Marathi</option>
+        <option value="gu">Gujarati</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="es">Spanish</option>
+        <option value="it">Italian</option>
+        <option value="ja">Japanese</option>
+        <option value="ko">Korean</option>
+        <option value="zh-CN">Chinese</option>
+        <option value="ar">Arabic</option>
+
     </select>
 
-    <button onclick="connect()">Connect</button>
+    <button
+        class="connect-btn"
+        onclick="connect()"
+    >
+        Connect
+    </button>
+
 </div>
 
 <div class="container">
-    <div class="contacts" id="contacts"></div>
+
+    <div class="contacts">
+
+        <div class="contacts-title">
+            Contacts
+        </div>
+
+        <div id="contactsList"></div>
+
+    </div>
 
     <div class="chat-area">
-        <div class="chat-box" id="chatBox"></div>
+
+        <div
+            class="chat-header"
+            id="chatHeader"
+        >
+            Select a contact
+        </div>
+
+        <div
+            class="chat-box"
+            id="chatBox"
+        >
+
+            <div class="empty">
+                Connect and select a user to start chatting 💬
+            </div>
+
+        </div>
 
         <div class="input-box">
-            <input id="message" placeholder="Type message..." style="flex:1;">
-            <button onclick="sendMessage()">Send</button>
+
+            <input
+                id="message"
+                type="text"
+                placeholder="Type message..."
+                onkeydown="handleEnter(event)"
+            >
+
+            <button
+                class="send-btn"
+                onclick="sendMessage()"
+            >
+                Send
+            </button>
+
         </div>
+
     </div>
+
 </div>
 
+
 <script>
-// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+
+/* =====================================================
+   FIREBASE CONFIG — YOUR GLOBALCHAT PROJECT
+   ===================================================== */
+
 const firebaseConfig = {
-  apiKey: "AIzaSyA6hyqYaNGK87vLRQBDuQqrcUS3psn52sA",
-  authDomain: "globalchat-1e2d3.firebaseapp.com",
-  databaseURL: "https://globalchat-1e2d3-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "globalchat-1e2d3"
+
+    apiKey: "AIzaSyA6hyqYaNGK87vLRQBDuQgrcUS3psn52sA",
+
+    authDomain: "globalchat-1e2d3.firebaseapp.com",
+
+    databaseURL:
+        "https://globalchat-1e2d3-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+    projectId: "globalchat-1e2d3",
+
+    storageBucket:
+        "globalchat-1e2d3.firebasestorage.app",
+
+    messagingSenderId:
+        "876179323113",
+
+    appId:
+        "1:876179323113:web:e368952cacdd40c8e51878",
+
+    measurementId:
+        "G-QMQC543QP"
+
 };
 
+
+/* =====================================================
+   FIREBASE START
+   ===================================================== */
+
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
 
+
+/* =====================================================
+   VARIABLES
+   ===================================================== */
+
 let myName = "";
-let selectedUser = "";
 let myLang = "en";
+let selectedUser = "";
+let connected = false;
 
-// CONNECT
+let allMessages = {};
+
+
+/* =====================================================
+   CONNECT
+   ===================================================== */
+
 function connect() {
-    myName = document.getElementById("name").value;
-    myLang = document.getElementById("lang").value;
 
-    if (!myName) {
-        alert("Enter name!");
+    const nameInput =
+        document.getElementById("name").value.trim();
+
+    const language =
+        document.getElementById("lang").value;
+
+
+    if (!nameInput) {
+
+        alert("Enter your name!");
+
         return;
     }
 
-    // 🔥 Save user + language
-    db.ref("users/" + myName).set({
+
+    myName = nameInput;
+    myLang = language;
+
+
+    const userRef =
+        db.ref("users/" + myName);
+
+
+    userRef.set({
+
         online: true,
-        lang: myLang
+
+        lang: myLang,
+
+        lastSeen: Date.now()
+
     });
 
-    // 🔥 Users list
+
+    userRef.onDisconnect().update({
+
+        online: false,
+
+        lastSeen: Date.now()
+
+    });
+
+
+    connected = true;
+
+
+    listenUsers();
+
+    listenMessages();
+
+
+    alert("Connected successfully ✅");
+}
+
+
+/* =====================================================
+   USERS
+   ===================================================== */
+
+function listenUsers() {
+
     db.ref("users").on("value", snapshot => {
-        let users = snapshot.val() || {};
-        let contacts = document.getElementById("contacts");
-        contacts.innerHTML = "";
 
-        let userList = Object.keys(users);
+        const users =
+            snapshot.val() || {};
 
-        userList.forEach(user => {
-            if (user === myName) return;
+        const contactsList =
+            document.getElementById("contactsList");
 
-            let div = document.createElement("div");
-            div.innerText = user;
-            div.className = "contact";
 
-            div.onclick = () => {
-                selectedUser = user;
-                highlight(div);
-            };
+        contactsList.innerHTML = "";
 
-            contacts.appendChild(div);
+
+        const onlineUsers = [];
+
+
+        Object.keys(users).forEach(user => {
+
+            if (user === myName) {
+                return;
+            }
+
+
+            if (
+                users[user] &&
+                users[user].online === true
+            ) {
+
+                onlineUsers.push(user);
+
+
+                const div =
+                    document.createElement("div");
+
+                div.className = "contact";
+
+
+                if (user === selectedUser) {
+
+                    div.classList.add("selected");
+
+                }
+
+
+                const dot =
+                    document.createElement("span");
+
+                dot.className =
+                    "status-dot";
+
+
+                const name =
+                    document.createElement("span");
+
+                name.innerText =
+                    user;
+
+
+                div.appendChild(dot);
+
+                div.appendChild(name);
+
+
+                div.onclick =
+                    function () {
+
+                        selectUser(user);
+
+                    };
+
+
+                contactsList.appendChild(div);
+            }
+
         });
 
-        if (!selectedUser && userList.length > 1) {
-            selectedUser = userList.find(u => u !== myName);
-        }
-    });
 
-    // 🔥 Messages listener
-    db.ref("messages").on("child_added", async snapshot => {
-        let msg = snapshot.val();
+        /*
+           AUTO SELECT FIRST USER
+        */
 
         if (
-            (msg.sender === myName && msg.receiver === selectedUser) ||
-            (msg.sender === selectedUser && msg.receiver === myName)
+            !selectedUser &&
+            onlineUsers.length > 0
         ) {
-            let translated = await translate(msg.text, msg.senderLang, myLang);
-            showMessage(msg.sender, translated);
+
+            selectUser(
+                onlineUsers[0]
+            );
+
         }
+
+
+        if (
+            onlineUsers.length === 0
+        ) {
+
+            selectedUser = "";
+
+            document.getElementById(
+                "chatHeader"
+            ).innerText =
+                "No contacts online";
+
+        }
+
     });
+
 }
 
-// 🔥 TRANSLATION
-async function translate(text, from, to) {
-    if (from === to) return text;
 
-    let url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`;
+/* =====================================================
+   SELECT USER
+   ===================================================== */
 
-    let res = await fetch(url);
-    let data = await res.json();
+function selectUser(user) {
 
-    return data[0][0][0];
+    selectedUser = user;
+
+
+    document.getElementById(
+        "chatHeader"
+    ).innerText =
+        "💬 " + user;
+
+
+    renderChat();
 }
 
-// SEND MESSAGE
-function sendMessage() {
-    let text = document.getElementById("message").value;
 
-    if (!text) return;
+/* =====================================================
+   MESSAGE LISTENER
+   ===================================================== */
+
+function listenMessages() {
+
+    db.ref("messages").on(
+        "child_added",
+        snapshot => {
+
+            const msg =
+                snapshot.val();
+
+
+            allMessages[
+                snapshot.key
+            ] = msg;
+
+
+            if (selectedUser) {
+
+                const belongsToChat =
+
+                    (
+                        msg.sender === myName &&
+                        msg.receiver === selectedUser
+                    )
+
+                    ||
+
+                    (
+                        msg.sender === selectedUser &&
+                        msg.receiver === myName
+                    );
+
+
+                if (belongsToChat) {
+
+                    renderChat();
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =====================================================
+   RENDER CHAT
+   ===================================================== */
+
+async function renderChat() {
+
+    const chatBox =
+        document.getElementById("chatBox");
+
+
+    chatBox.innerHTML = "";
+
 
     if (!selectedUser) {
-        alert("No users online!");
+
+        chatBox.innerHTML =
+            '<div class="empty">Select a contact 💬</div>';
+
         return;
     }
 
-    db.ref("messages").push({
-        sender: myName,
-        receiver: selectedUser,
-        text: text,
-        senderLang: myLang
+
+    const conversation = [];
+
+
+    Object.values(allMessages).forEach(msg => {
+
+        const belongsToChat =
+
+            (
+                msg.sender === myName &&
+                msg.receiver === selectedUser
+            )
+
+            ||
+
+            (
+                msg.sender === selectedUser &&
+                msg.receiver === myName
+            );
+
+
+        if (belongsToChat) {
+
+            conversation.push(msg);
+
+        }
+
     });
 
-    document.getElementById("message").value = "";
+
+    conversation.sort(
+        (a, b) =>
+            (a.time || 0) -
+            (b.time || 0)
+    );
+
+
+    for (
+        const msg of conversation
+    ) {
+
+        let displayText =
+            msg.text;
+
+
+        /*
+           Friend message:
+           translate into my language
+        */
+
+        if (
+
+            msg.sender !== myName &&
+
+            msg.senderLang &&
+
+            msg.senderLang !== myLang
+
+        ) {
+
+            try {
+
+                displayText =
+                    await translateText(
+                        msg.text,
+                        msg.senderLang,
+                        myLang
+                    );
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    "Translation error:",
+                    error
+                );
+
+                displayText =
+                    msg.text;
+
+            }
+
+        }
+
+
+        showMessage(
+            msg.sender,
+            displayText
+        );
+
+    }
+
+
+    chatBox.scrollTop =
+        chatBox.scrollHeight;
 }
 
-// SHOW MESSAGE
-function showMessage(sender, text) {
-    let chat = document.getElementById("chatBox");
 
-    let div = document.createElement("div");
+/* =====================================================
+   TRANSLATION
+   ===================================================== */
+
+async function translateText(
+    text,
+    from,
+    to
+) {
+
+    if (!text) {
+
+        return "";
+
+    }
+
+
+    if (from === to) {
+
+        return text;
+
+    }
+
+
+    const url =
+
+        "https://translate.googleapis.com/translate_a/single" +
+
+        "?client=gtx" +
+
+        "&sl=" +
+        encodeURIComponent(from) +
+
+        "&tl=" +
+        encodeURIComponent(to) +
+
+        "&dt=t" +
+
+        "&q=" +
+        encodeURIComponent(text);
+
+
+    const response =
+        await fetch(url);
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Translation failed"
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    if (
+
+        data &&
+
+        data[0] &&
+
+        data[0][0] &&
+
+        data[0][0][0]
+
+    ) {
+
+        return data[0][0][0];
+
+    }
+
+
+    return text;
+}
+
+
+/* =====================================================
+   SEND MESSAGE
+   ===================================================== */
+
+function sendMessage() {
+
+    const input =
+        document.getElementById("message");
+
+
+    const text =
+        input.value.trim();
+
+
+    if (!connected) {
+
+        alert(
+            "First click Connect!"
+        );
+
+        return;
+    }
+
+
+    if (!selectedUser) {
+
+        alert(
+            "No user selected!"
+        );
+
+        return;
+    }
+
+
+    if (!text) {
+
+        return;
+    }
+
+
+    db.ref("messages").push({
+
+        sender: myName,
+
+        receiver: selectedUser,
+
+        text: text,
+
+        senderLang: myLang,
+
+        time: Date.now()
+
+    });
+
+
+    input.value = "";
+
+    input.focus();
+}
+
+
+/* =====================================================
+   SHOW MESSAGE
+   ===================================================== */
+
+function showMessage(
+    sender,
+    text
+) {
+
+    const chatBox =
+        document.getElementById("chatBox");
+
+
+    const div =
+        document.createElement("div");
+
+
     div.classList.add("msg");
-    div.classList.add(sender === myName ? "me" : "other");
 
-    div.innerText = sender + ": " + text;
 
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+    if (
+        sender === myName
+    ) {
+
+        div.classList.add("me");
+
+    } else {
+
+        div.classList.add("other");
+
+    }
+
+
+    const senderName =
+        document.createElement("div");
+
+    senderName.className =
+        "sender-name";
+
+    senderName.innerText =
+        sender;
+
+
+    const messageText =
+        document.createElement("div");
+
+    messageText.innerText =
+        text;
+
+
+    div.appendChild(
+        senderName
+    );
+
+    div.appendChild(
+        messageText
+    );
+
+
+    chatBox.appendChild(div);
 }
 
-// HIGHLIGHT USER
-function highlight(div) {
-    document.querySelectorAll(".contact").forEach(c => c.style.background = "white");
-    div.style.background = "#d0f0c0";
+
+/* =====================================================
+   ENTER TO SEND
+   ===================================================== */
+
+function handleEnter(event) {
+
+    if (
+        event.key === "Enter"
+    ) {
+
+        event.preventDefault();
+
+        sendMessage();
+
+    }
+
 }
+
 </script>
 
 </body>
+
 </html>
